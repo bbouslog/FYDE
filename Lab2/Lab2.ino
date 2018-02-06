@@ -4,7 +4,7 @@
 
 // Set the number to whichever part you're currently useing
 // i.e. for part two "STEP_NUMBER 2"
-#define STEP_NUMBER 1
+#define STEP_NUMBER 2
 
 bool check_failure(int);
 int psuedo_random(void);
@@ -26,7 +26,8 @@ void sensor_init(void)
   if(check_failure(3))
   {
     //your code here
-
+    // Green
+    digitalWrite(12, HIGH);
     failure();
   }
 }
@@ -36,7 +37,8 @@ void actuator_init(void)
   if(check_failure(5))
   {
     //your code here
-
+    // Blue
+    digitalWrite(11, HIGH);
     failure();
   }
 }
@@ -46,13 +48,18 @@ void wifi_init(void)
   if(check_failure(7))
   {
     //your code here
-
+    // Red
+    digitalWrite(10, HIGH);
     failure();
   }
 }
 
 void setup(void)
 {
+  pinMode(13, OUTPUT);
+  pinMode(10, OUTPUT);
+  pinMode(11, OUTPUT);
+  pinMode(12, OUTPUT);
   sensor_init();
   actuator_init();
   wifi_init(); 
@@ -82,7 +89,8 @@ void loop(void)
       if(check_failure(i))
       {
         //insert your code here
-
+        Serial.print(i);
+        Serial.println(" failed");
         failure();
       }
     }
@@ -145,7 +153,7 @@ void failure(void)
 
 bool check_failure(int num)
 {
-  if(!(psuedo_random() % num))
+  if((psuedo_random() % num))
   {
     return true;
   }
