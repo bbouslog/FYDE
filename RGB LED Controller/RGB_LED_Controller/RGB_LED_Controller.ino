@@ -1,14 +1,21 @@
-int CLK = 2;//CLK->D2
-int DT = 3;//DT->D3
-int SW = 4;//SW->D4
+const int CLK = 2;//CLK->D2
+const int DT = 3;//DT->D3
+const int SW = 4;//SW->D4
 const int interrupt0 = 0;// Interrupt 0 is on pin 2 
+const char hexaKeys[4][4] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
+};
+const int ledR = 9;
+const int ledG = 10;
+const int ledB = 11;
 int count = 0;//Define the count
 int lastCLK = 0;//CLK initial value
 int currentColor = 0; // 0 is r, 1 is g, 2 is b
 int led[3] = {0, 0, 0};
-int ledR = 9;
-int ledG = 10;
-int ledB = 11;
+int lastSwitch = 1;
 
 void setup() {
   // put your setup code here, to run once:
@@ -25,12 +32,13 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  if (!digitalRead(SW)) {
+  if (digitalRead(SW) && lastSwitch == 0) {
     if (++currentColor == 3) {
       currentColor = 0;
     }
     Serial.println("Color change");
   }
+  lastSwitch = digitalRead(SW);
   analogWrite(ledR, led[0]);
   analogWrite(ledG, led[1]);
   analogWrite(ledB, led[2]);
@@ -42,7 +50,7 @@ void Clk() {
   if (lastCLK != clkValue)
   {
     lastCLK = clkValue;
-    led[currentColor] += (clkValue != dtValue ? 1 : -1);//CLK and inconsistent DT + 1, otherwise - 1
+    led[currentColor] += (clkValue != dtValue ? 5 : -5);//CLK and inconsistent DT + 1, otherwise - 1
     if (led[currentColor] < 0) {
       led[currentColor] = 0;
     }
