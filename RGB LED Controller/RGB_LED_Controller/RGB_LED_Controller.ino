@@ -11,11 +11,26 @@ const char hexaKeys[4][4] = {
 const int ledR = 9;
 const int ledG = 10;
 const int ledB = 11;
+const byte rowPins[ROWS] = {22, 24, 26, 28}; //connect to the row pinouts of the keypad
+const byte colPins[COLS] = {30, 32, 34, 36}; //connect to the column pinouts of the keypad
+
 int count = 0;//Define the count
 int lastCLK = 0;//CLK initial value
 int currentColor = 0; // 0 is r, 1 is g, 2 is b
-int led[3] = {0, 0, 0};
+int LED[3] = {0, 0, 0};
+int updateLED[3] = {0, 0, 0};
+int inputSum = -1;
 int lastSwitch = 1;
+int state = 0;
+int lastState = 0;
+
+Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, 4, 4); 
+
+void cycleColor() {
+  if (++currentColor == 3) {
+    currentColor = 0;
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -33,10 +48,41 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
   if (digitalRead(SW) && lastSwitch == 0) {
-    if (++currentColor == 3) {
-      currentColor = 0;
-    }
     Serial.println("Color change");
+    cycleColor();
+  }
+  char key = customKeypad.getKey();
+  if (key == '#') {
+    if (state == 1) {
+      state = 0;
+    } else {
+      state = 1;
+    }
+  } else if (key == 'A') {
+    
+  } else if (key == 'B') {
+    
+  } else if (key == 'C') {
+    
+  } else if (key == 'D') {
+    
+  } else if (key == '*') {
+    if (state == 1) {
+      if (inputSum != -1) {
+        // set new rgb value
+      } else {
+        // reset inputsum
+        inputSum = -1;
+        cycleColor();
+      }
+    }
+  } else {
+    if (state == 1) {
+      if (inputSum != -1) {
+        inputSum *= 10;
+      }
+      inputSum += key - '0';
+    }
   }
   lastSwitch = digitalRead(SW);
   analogWrite(ledR, led[0]);
