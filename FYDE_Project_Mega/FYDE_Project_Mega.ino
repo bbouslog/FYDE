@@ -41,7 +41,7 @@
 
 const int CLK = 2;//CLK->D2
 const int DT = 3;//DT->D3
-const int SW = 4;//SW->D4
+const int SW = 5;//SW->D5
 const int interrupt0 = 0;// Interrupt 0 is on pin 2 
 const char hexaKeys[4][4] = {
   {'1','2','3','A'},
@@ -59,14 +59,17 @@ static int count = 0;//Define the count
 static int lastCLK = 0;//CLK initial value
 static int currentColor = 0; // 0 is r, 1 is g, 2 is b
 static int LED[3] = {0, 0, 0};
+static int BreatheLED[3] = {255, 0, 0};
 static int updateLED[3] = {0, 0, 0};
 static int inputSum = -1;
 static int lastSwitch = 1;
 static int state = 0;
 static int lastState = 0;
-static int mode = 0; // 0 is normal, 1 is strobe, 2 is breathe
+static int mode = 0; // 0 is normal, 2 is strobe
 static int periodCounter = 0;
-
+static int flashCounter = 0;
+static int flashCycle = 0;
+static int strobeCycle = 0;
 
 
 Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, 4, 4); 
@@ -75,6 +78,7 @@ void cycleColor() {
   if (++currentColor == 3) {
     currentColor = 0;
   }
+  flashCounter = 0;
   Serial.println("Changing color");
 }
 
@@ -96,7 +100,11 @@ void DebugPrint(void) {
  
 }
 
-void checkKeypad(void) {
+void CheckKeypad(void) {
+  if (!digitalRead(SW) && lastSwitch == 1) {
+    cycleColor();
+  }
+  
   char key = customKeypad.getKey();
   if (key == '#') {
     if (state == 1) {
@@ -109,15 +117,18 @@ void checkKeypad(void) {
       LED[1] = updateLED[1];
       LED[2] = updateLED[2];
       state = 0;
+      flashCounter = 400;
     } else {
       state = 1;
+      currentColor = 0;
+      flashCounter = 0;
     }
   } else if (key == 'A') {
     mode = 0;
   } else if (key == 'B') {
     mode = 1;
   } else if (key == 'C') {
-    
+    mode = 2;
   } else if (key == 'D') {
     Serial.print("inputSum: ");
     Serial.println(inputSum);
@@ -130,6 +141,8 @@ void checkKeypad(void) {
       }
       // reset inputsum
       inputSum = -1;
+      cycleColor();
+    } else if (state == 0) {
       cycleColor();
     }
   } else if (key != 0x0) {
@@ -172,18 +185,21 @@ void checkKeypad(void) {
 
 // **********************************
 void SerialInput_to_Mega(void) {
-
+  
   while (Serial1.available() > 0) {
+    Serial.println(Serial1.peek());
     //Serial.println("In serial input");
     // look for the next valid integer in the incoming serial stream:
-
+//    Serial.println(Serial1.read());
     Pin_Number  = Serial1.parseInt();
     Pin_Integer = Serial1.parseInt();
     Pin_Float = Serial1.parseFloat();
-     
-    // look for the newline.
+//     
+//    // look for the newline.
     if (Serial1.read() == '\n') {
       DebugPrint();
+    } else {
+      Serial.println("weird");
     }
   Parser();
   }
@@ -258,11 +274,6 @@ float sensorValueNew = 0.0;
 
 // **********************************
 void ReadSensors(void) {
-  
-  if (digitalRead(SW) && lastSwitch == 0) {
-    cycleColor();
-  }
-  
   sensorValueNew = analogRead(sensorPin);
   
   if (abs(sensorValueNew - (sensorValueOld)) > 0) {
@@ -307,7 +318,10 @@ void loop() {
   SerialInput_to_Mega();
   //Execute();
   ReadSensors();
-  checkKeypad();
+  CheckKeypad();
+  FlashCurrent();
+  Strobe();
+  Breathe();
 }
 
 
@@ -330,3 +344,99 @@ void Clk() {
     Serial.println(LED[currentColor]);
   }
 }
+
+void FlashCurrent(void) {
+  if (flashCounter == 400) {
+    return;
+  } else {
+    flashCounter++;
+  }
+  if (flashCycle < 50) {
+    flashCycle++;
+    switch(currentColor) {
+      case 0:
+        analogWrite(ledR, 255);
+        analogWrite(ledG, 0);
+        analogWrite(ledB, 0);
+        break;
+      case 1:
+        analogWrite(ledR, 0);
+        analogWrite(ledG, 255);
+        analogWrite(ledB, 0);
+        break;
+      case 2:
+        analogWrite(ledR, 0);
+        analogWrite(ledG, 0);
+        analogWrite(ledB, 255);
+        break;
+    }
+  } else if (flashCycle == 100) {
+    flashCycle = 0;
+  } else {
+    flashCycle++;
+    switch(currentColor) {
+      case 0:
+        analogWrite(ledR, 0);
+        analogWrite(ledG, 0);
+        analogWrite(ledB, 0);
+        break;
+      case 1:
+        analogWrite(ledR, 0);
+        analogWrite(ledG, 0);
+        analogWrite(ledB, 0);
+        break;
+      case 2:
+        analogWrite(ledR, 0);
+        analogWrite(ledG, 0);
+        analogWrite(ledB, 0);
+        break;
+    }
+  }
+}
+
+void Strobe(void) {
+  if (mode == 2) {
+    if (strobeCycle < 10) {
+      strobeCycle++;
+      analogWrite(ledR, LED[0]);
+      analogWrite(ledG, LED[1]);
+      analogWrite(ledB, LED[2]);
+    } else if (strobeCycle == 20) {
+      strobeCycle = 0;
+    } else {
+      strobeCycle++;
+      analogWrite(ledR, 0);
+      analogWrite(ledG, 0);
+      analogWrite(ledB, 0);
+    }
+  }
+}
+
+void Breathe(void) {
+  if (mode == 1) {
+    // Led control
+    if (BreatheLED[0] == 255 && BreatheLED[1] != 255) {
+        if (BreatheLED[2] > 0) {
+            BreatheLED[2]--;
+        } else {
+            BreatheLED[1]++;
+        }
+    } else if (BreatheLED[1] == 255 && BreatheLED[2] != 255) {
+        if (BreatheLED[0] > 0) {
+            BreatheLED[0]--;
+        } else {
+            BreatheLED[2]++;
+        }
+    } else if (BreatheLED[2] == 255 && BreatheLED[0] != 255) {
+        if (BreatheLED[1] > 0) {
+            BreatheLED[1]--;
+        } else {
+            BreatheLED[0]++;
+        }
+    }
+    analogWrite(ledR, BreatheLED[0]);
+    analogWrite(ledG, BreatheLED[1]);
+    analogWrite(ledB, BreatheLED[2]);
+  }
+}
+
